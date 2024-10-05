@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -119,6 +120,40 @@ func restartProc(name string) error {
 		return err
 	}
 	return startProc(name, nil, nil)
+}
+
+func suspendProc(name string) error {
+	proc := findProc(name)
+	if proc == nil {
+		return errors.New("unknown proc " + name)
+	}
+	proc.mu.Lock()
+	defer proc.mu.Unlock()
+
+	if proc.cmd == nil {
+		return nil
+	}
+	if err := syscall.Kill(proc.cmd.Process.Pid, syscall.SIGSTOP); err != nil {
+		return err
+	}
+	return nil
+}
+
+func resumeProc(name string) error {
+	proc := findProc(name)
+	if proc == nil {
+		return errors.New("unknown proc " + name)
+	}
+	proc.mu.Lock()
+	defer proc.mu.Unlock()
+
+	if proc.cmd == nil {
+		return nil
+	}
+	if err := syscall.Kill(proc.cmd.Process.Pid, syscall.SIGCONT); err != nil {
+		return err
+	}
+	return nil
 }
 
 // stopProcs attempts to stop every running process and returns any non-nil

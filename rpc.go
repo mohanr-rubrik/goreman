@@ -99,6 +99,38 @@ func (r *Goreman) RestartAll(args []string, ret *string) (err error) {
 	return err
 }
 
+// Suspend do suspend
+func (r *Goreman) Suspend(args []string, ret *string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	for _, arg := range args {
+		if err = suspendProc(arg); err != nil {
+			break
+		}
+	}
+	return err
+}
+
+// Resume resumes a suspended process
+func (r *Goreman) Resume(args []string, ret *string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	for _, arg := range args {
+		if err = resumeProc(arg); err != nil {
+			break
+		}
+	}
+	return err
+}
+
 // List do list
 func (r *Goreman) List(args []string, ret *string) (err error) {
 	defer func() {
@@ -150,6 +182,10 @@ func run(cmd string, args []string, serverPort uint) error {
 		return client.Call("Goreman.Restart", args, &ret)
 	case "restart-all":
 		return client.Call("Goreman.RestartAll", args, &ret)
+	case "suspend":
+		return client.Call("Goreman.Suspend", args, &ret)
+	case "resume":
+		return client.Call("Goreman.Resume", args, &ret)
 	case "list":
 		err := client.Call("Goreman.List", args, &ret)
 		fmt.Print(ret)
